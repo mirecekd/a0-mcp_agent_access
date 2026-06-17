@@ -1,0 +1,173 @@
+<html>
+<head>
+    <title>MCP Agent Access Control</title>
+    <script type="module" src="/plugins/mcp_agent_access/webui/access-config-store.js"></script>
+    <style>
+        .maac-rows { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 0.6rem; }
+        .maac-card {
+            border: 1px solid var(--color-border, #4444);
+            border-radius: 8px;
+            padding: 0.7rem 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .maac-card-head { display: flex; align-items: center; gap: 0.5rem; }
+        .maac-card-head .maac-profile-label { font-size: 0.75em; opacity: 0.7; white-space: nowrap; }
+        .maac-card-head input {
+            flex: 1;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 0.95em;
+            padding: 0.3rem 0.5rem;
+        }
+        .maac-servers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem 1rem;
+        }
+        .maac-server {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.88em;
+            cursor: pointer;
+            user-select: none;
+        }
+        .maac-server input { cursor: pointer; margin: 0; }
+        .maac-fallback textarea {
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 2.4em;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 0.9em;
+        }
+        .maac-no-servers { font-size: 0.8em; opacity: 0.6; font-style: italic; }
+        .maac-del {
+            cursor: pointer;
+            border: 1px solid #ef4444;
+            background: transparent;
+            color: #ef4444;
+            border-radius: 6px;
+            font-size: 0.8em;
+            font-weight: 600;
+            line-height: 1;
+            padding: 0.35rem 0.6rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            white-space: nowrap;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+        .maac-del:hover { background: #ef4444; color: #fff; }
+        .maac-actions { margin-top: 0.8rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .maac-btn {
+            cursor: pointer;
+            padding: 0.4rem 0.85rem;
+            border-radius: 6px;
+            border: 1px solid #2563eb;
+            background: #2563eb;
+            color: #fff;
+            font-size: 0.85em;
+            font-weight: 500;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .maac-btn:hover { background: #1d4ed8; border-color: #1d4ed8; }
+        .maac-btn:active { background: #1e40af; border-color: #1e40af; }
+        .maac-hint { font-size: 0.78em; opacity: 0.7; margin-top: 0.5rem; line-height: 1.4; }
+        .maac-empty { font-size: 0.85em; opacity: 0.7; padding: 0.5rem 0; }
+    </style>
+</head>
+
+<body>
+    <div x-data>
+        <template x-if="$store.mcpAgentAccess">
+            <div x-init="$store.mcpAgentAccess.init(config, context)"
+                 x-destroy="$store.mcpAgentAccess.cleanup()">
+                <div class="section-title">MCP Agent Access Control</div>
+                <div class="section-description">
+                    For each agent profile, tick the MCP servers it may see and call.
+                    Leave the whole list empty to impose no restriction (all profiles see all MCP servers).
+                </div>
+
+                <div class="maac-rows">
+                    <template x-if="$store.mcpAgentAccess.rows.length === 0">
+                        <div class="maac-empty">No rules yet — every profile sees all MCP servers. Add a profile to start scoping.</div>
+                    </template>
+
+                    <template x-for="(row, idx) in $store.mcpAgentAccess.rows" :key="idx">
+                        <div class="maac-card">
+                            <div class="maac-card-head">
+                                <span class="maac-profile-label">Agent profile</span>
+                                <!--
+                                  Single <select> driven by store.profileOptions(row).
+                                  profileOptions() always includes an option matching the row's
+                                  current value, so the dropdown can never silently render the
+                                  wildcard label ("All other profiles") in place of the actual
+                                  profile key while knownProfiles is still loading.
+                                -->
+                                <select
+                                    x-init="$nextTick(() => $el.value = row.profile)"
+                                    @change="row.profile = $event.target.value; $store.mcpAgentAccess.sync()">
+                                    <template x-if="!row.profile">
+                                        <option value="" disabled selected>— choose a profile —</option>
+                                    </template>
+                                    <template x-for="opt in $store.mcpAgentAccess.profileOptions(row)" :key="opt.value">
+                                        <option
+                                            :value="opt.value"
+                                            :selected="opt.value === row.profile"
+                                            x-text="opt.label"></option>
+                                    </template>
+                                </select>
+                                <button class="maac-del" title="Remove this profile rule"
+                                    @click="$store.mcpAgentAccess.removeRow(idx)">&times; Remove</button>
+                            </div>
+
+                            <!-- checkbox grid of real configured MCP servers -->
+                            <template x-if="$store.mcpAgentAccess.hasKnownServers()">
+                                <div class="maac-servers">
+                                    <template x-for="server in $store.mcpAgentAccess.knownServers" :key="server">
+                                        <label class="maac-server">
+                                            <input type="checkbox"
+                                                :checked="$store.mcpAgentAccess.isChecked(row, server)"
+                                                @change="$store.mcpAgentAccess.toggleServer(row, server)" />
+                                            <span x-text="server"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <!-- free-text fallback when the MCP server list can't be loaded -->
+                            <template x-if="!$store.mcpAgentAccess.hasKnownServers()">
+                                <div class="maac-fallback">
+                                    <div class="maac-no-servers">Could not load configured MCP servers — enter names manually (comma-separated):</div>
+                                    <textarea placeholder="e.g. aws-knowledge, aws-pricing, aws-api"
+                                        :value="$store.mcpAgentAccess.serversText(row)"
+                                        @input="$store.mcpAgentAccess.setServersText(row, $event.target.value)"></textarea>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="maac-actions">
+                    <button class="maac-btn" @click="$store.mcpAgentAccess.addRow()">+ Add profile rule</button>
+                    <button class="maac-btn" @click="$store.mcpAgentAccess.addAllProfiles()"
+                        x-show="$store.mcpAgentAccess.availableProfiles().length > 0">+ Add all agent profiles</button>
+                    <button class="maac-btn" @click="$store.mcpAgentAccess.addWildcard()"
+                        x-show="!$store.mcpAgentAccess.hasWildcard()">+ Add default (*) rule</button>
+                </div>
+
+                <div class="maac-hint">
+                    <strong>Profile</strong> is the agent profile name (e.g. <code>agent0</code>, <code>aws_architect</code>).
+                    The special <code>*</code> profile is the default for any profile not listed.
+                    Tick a server to allow it for that profile; leave all unticked to give the profile no MCP servers.
+                    The checkboxes list the MCP servers currently configured in your MCP settings.
+                </div>
+            </div>
+        </template>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,28 @@
+# mcp_agent_access default configuration
+#
+# access_map: maps an agent profile name to the list of MCP server names that
+# profile is allowed to see (in its system prompt) and call (at runtime).
+#
+# - Keys are agent profile names (e.g. "agent0", "aws_architect").
+# - Values are lists of MCP server names exactly as they appear in Settings
+#   (the keys under "mcpServers" in mcp_servers).
+# - The special "*" key is the default whitelist for any profile not listed.
+# - If access_map is empty/unset, the plugin imposes NO restriction (allow-all),
+#   so installing it without configuration never silently hides tools.
+#
+# Configure this visually in Settings -> MCP -> MCP Agent Access Control:
+# for every profile you get a checkbox per configured MCP server; tick the ones
+# that profile may use. You can also edit it here as a fallback.
+#
+# Example (uncomment and adapt to your own profiles and server names):
+#
+# access_map:
+#   agent0:
+#     - some-local-server
+#   my_specialist_profile:
+#     - some-remote-server
+#     - another-server
+#   "*":
+#     - some-local-server
+
+access_map: {}
