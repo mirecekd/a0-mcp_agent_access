@@ -24,8 +24,10 @@ Agent Zero registers MCP servers **globally** (in Settings → `mcp_servers`), s
 
 The plugin adds two extensions:
 
-1. **Prompt filter** (`system_prompt` hook, via the `@extensible` `build_prompt` end hook in `_12_mcp_prompt`) — rewrites the MCP tools block so each agent only sees the servers its profile is allowed to use.
+1. **Prompt filter** (`system_prompt` extension point, runs after `_12_mcp_prompt.py`) — finds the MCP tools block already appended to `system_prompt[]` by Agent Zero's built-in `MCPToolsPrompt` and rewrites it so each agent only sees the servers its profile is allowed to use.
 2. **Execution gate** (`tool_execute_before` hook) — if a model still tries to call an MCP tool whose server is not whitelisted for the profile, the call is rejected with a clear message.
+
+The filter normalizes server names (lowercased, non-word chars → underscore) on both sides of the comparison, so the whitelist in `config.json` can use the original hyphenated names (e.g. `aws-knowledge`) while the runtime `MCPConfig.servers[].name` uses the normalized form (e.g. `aws_knowledge`).
 
 MCP servers themselves stay configured globally (so their clients still start). The plugin only controls **visibility and use** per profile.
 

@@ -53,6 +53,8 @@ def _load_access_map(agent: Any) -> dict[str, list[str]]:
 
     Reads runtime plugin settings first (resolves project/profile scope from
     the agent context), then falls back to the packaged ``default_config.yaml``.
+    If get_plugin_config fails (e.g. agent.context not initialized), falls back
+    to reading config.json directly from the plugin directory.
     """
     raw: dict[str, Any] | None = None
     try:
@@ -66,6 +68,26 @@ def _load_access_map(agent: Any) -> dict[str, list[str]]:
     access: Any = None
     if isinstance(raw, dict):
         access = raw.get(_CONFIG_KEY)
+
+    # Disk fallback: read config.json directly from plugin dir when the
+    # framework helper failed or returned an empty/missing access_map.
+    if not isinstance(access, dict) or not access:
+        try:
+            import json as _json
+            import os as _os
+
+            _here = _os.path.dirname(_os.path.abspath(__file__))
+            _plugin_dir = _os.path.dirname(_here)
+            _cfg_path = _os.path.join(_plugin_dir, "config.json")
+            if _os.path.exists(_cfg_path):
+                with open(_cfg_path, "r") as _f:
+                    raw = _json.load(_f)
+                if isinstance(raw, dict):
+                    access = raw.get(_CONFIG_KEY)
+        except Exception as exc:  # pragma: no cover - defensive
+            PrintStyle.warning(
+                f"[mcp_agent_access] disk fallback for config.json failed: {exc}"
+            )
 
     if not isinstance(access, dict):
         return {}

@@ -1,7 +1,7 @@
 name: mcp_agent_access
 title: MCP Agent Access Control
 description: Per-agent/per-profile whitelist for MCP servers. Restricts which MCP tools each agent profile can see in its prompt and call, so global MCP servers can be scoped to specific agents (e.g. AWS servers only for AWS agents, keeping agent0 clean).
-version: 1.0.0
+version: 1.0.1
 settings_sections:
   - mcp
 per_project_config: false
