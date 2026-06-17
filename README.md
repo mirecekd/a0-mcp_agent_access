@@ -1,7 +1,7 @@
 # MCP Agent Access Control
 
 <p align="center">
-  <img src="webui/mcp_access.png" alt="MCP Agent Access Control" width="400" />
+  <img src="webui/mcp_access.png" alt="MCP Agent Access Control" />
 </p>
 
 Per-agent / per-profile **whitelist for MCP servers** in [Agent Zero](https://github.com/agent0ai/agent-zero).
